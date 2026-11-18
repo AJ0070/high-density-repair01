@@ -15,7 +15,10 @@ test("ButterStick force clamping beside a completed data-byte via", async (): Pr
     gunzipSync(
       new Uint8Array(
         readFileSync(
-          new URL("./fixtures/butterstick-fixed-via-clamp.json.gz", import.meta.url),
+          new URL(
+            "./fixtures/butterstick-fixed-via-clamp.json.gz",
+            import.meta.url,
+          ),
         ),
       ),
     ).toString("utf8"),

@@ -412,39 +412,46 @@ const getClearanceForceMagnitude = (
   return tailMagnitude < 1e-5 ? 0 : tailMagnitude
 }
 
-const clampNodeToBounds = ({
-  node,
-  bounds,
-  route,
-  fixedViaObstacles,
-}: {
-  node: MutableNode
-  bounds: Bounds
-  route: HighDensityRoute
-  fixedViaObstacles: readonly FixedViaObstacle[]
-}): void => {
+const clampNodeToBounds = (node: MutableNode, bounds: Bounds): void => {
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset
   const minY = bounds.minY + node.boundaryPadding + inset
   const maxY = bounds.maxY - node.boundaryPadding - inset
 
-  const nextX = clampValue(node.x, minX, maxX)
-  const nextY = clampValue(node.y, minY, maxY)
-  if (node.fixed && node.boundaryPadding > 0) {
-    const zLayers = node.pointIndexes.map((index): number => route.route[index].z)
+  node.x = clampValue(node.x, minX, maxX)
+  node.y = clampValue(node.y, minY, maxY)
+}
+
+const clampMutableRouteWithFixedVias = ({
+  mutableRoute,
+  bounds,
+}: {
+  mutableRoute: MutableRoute
+  bounds: Bounds
+}): void => {
+  for (const node of mutableRoute.nodes) {
+    const originalX = node.x
+    const originalY = node.y
+    clampNodeToBounds(node, bounds)
+    if (!node.fixed || node.boundaryPadding === 0) continue
+    const moved = node.x !== originalX || node.y !== originalY
+    if (!moved) continue
+    const zLayers = node.pointIndexes.map(
+      (index): number => mutableRoute.route.route[index].z,
+    )
     const minZ = Math.min(...zLayers)
     const maxZ = Math.max(...zLayers)
-    const worsensFixedViaClearance = fixedViaObstacles.some(
+    const worsensFixedViaClearance = mutableRoute.fixedViaObstacles.some(
       (obstacle): boolean => {
         if (obstacle.minZ > maxZ || obstacle.maxZ < minZ) return false
         const originalDistance = getVectorLength(
-          node.x - obstacle.x,
-          node.y - obstacle.y,
+          originalX - obstacle.x,
+          originalY - obstacle.y,
         )
         const nextDistance = getVectorLength(
-          nextX - obstacle.x,
-          nextY - obstacle.y,
+          node.x - obstacle.x,
+          node.y - obstacle.y,
         )
         const requiredDistance =
           node.boundaryPadding + obstacle.radius + obstacle.clearance
@@ -454,24 +461,24 @@ const clampNodeToBounds = ({
         )
       },
     )
-    if (worsensFixedViaClearance) return
+    if (worsensFixedViaClearance) {
+      node.x = originalX
+      node.y = originalY
+    }
   }
-  node.x = nextX
-  node.y = nextY
 }
 
 const clampMutableRoutesToBounds = (
   mutableRoutes: MutableRoute[],
   bounds: Bounds,
-) => {
+): void => {
   for (const mutableRoute of mutableRoutes) {
+    if (mutableRoute.fixedViaObstacles.length > 0) {
+      clampMutableRouteWithFixedVias({ mutableRoute, bounds })
+      continue
+    }
     for (const node of mutableRoute.nodes) {
-      clampNodeToBounds({
-        node,
-        bounds,
-        route: mutableRoute.route,
-        fixedViaObstacles: mutableRoute.fixedViaObstacles,
-      })
+      clampNodeToBounds(node, bounds)
     }
   }
 }
@@ -2187,7 +2194,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
             this.totalStepsPerNode,
             {
               includeForceVectors: true,
-        fixedViaObstacles: this.fixedViaObstacles,
+              fixedViaObstacles: this.fixedViaObstacles,
               fixedPortPoints: this.preserveTopologyPortAnchors
                 ? sampleEntry.node.portPoints
                 : undefined,

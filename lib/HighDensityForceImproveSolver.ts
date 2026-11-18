@@ -400,12 +400,15 @@ const getClearanceForceMagnitude = (
   return tailMagnitude < 1e-5 ? 0 : tailMagnitude
 }
 
-const clampNodeToBounds = (node: MutableNode, bounds: Bounds) => {
+const clampNodeToBounds = (node: MutableNode, bounds: Bounds): void => {
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset
   const minY = bounds.minY + node.boundaryPadding + inset
   const maxY = bounds.maxY - node.boundaryPadding - inset
+
+  // Keep fixed vias in place when their mesh cell cannot contain their copper.
+  if (node.fixed && (minX > maxX || minY > maxY)) return
 
   node.x = clampValue(node.x, minX, maxX)
   node.y = clampValue(node.y, minY, maxY)

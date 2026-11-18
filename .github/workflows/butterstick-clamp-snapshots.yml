@@ -1,0 +1,52 @@
+name: Render the real ButterStick clamp regression
+on:
+  push:
+    branches: [analysis/butterstick-clamp-snapshots]
+    paths: [.github/workflows/butterstick-clamp-snapshots.yml]
+permissions:
+  contents: write
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [before, after]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - run: bun install
+      - name: Use the exact existing-solver fix
+        if: matrix.mode == 'after'
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/tscircuit/high-density-repair01/c975085e8059de99d46c707e1cb17d7e125b227a/lib/HighDensityForceImproveSolver.ts -o lib/HighDensityForceImproveSolver.ts
+      - name: Render the unchanged captured node
+        run: |
+          BUN_UPDATE_SNAPSHOTS=1 bun test tests/butterstick-fixed-via-clamp.test.ts --timeout 600000
+          cat > gap.private.ts <<'TS'
+          import {readFileSync} from "node:fs"
+          import {gunzipSync} from "node:zlib"
+          import {HighDensityForceImproveSolver} from "./lib/HighDensityForceImproveSolver"
+          const f=JSON.parse(gunzipSync(readFileSync("tests/fixtures/butterstick-fixed-via-clamp.json.gz")).toString())
+          const solver=new HighDensityForceImproveSolver(f.params);solver.solve()
+          const gaps=[]
+          for(const r of solver.getOutput())for(let i=1;i<r.route.length;i++){
+            const a=r.route[i-1],b=r.route[i]
+            if(a.z===b.z)continue
+            for(const v of f.fixedVias){
+              if(v.connectionNames.includes(r.connectionName)||v.connectionNames.includes(r.rootConnectionName))continue
+              if(v.minZ>Math.max(a.z,b.z)||v.maxZ<Math.min(a.z,b.z))continue
+              gaps.push(Math.hypot(a.x-v.x,a.y-v.y)-r.viaDiameter/2-v.radius)
+            }
+          }
+          console.log("NATIVE_VIA_GAP="+JSON.stringify({minimum:Math.min(...gaps)}))
+          TS
+          bun gap.private.ts
+          git config user.name "tscircuit bot"
+          git config user.email "githubbot@tscircuit.com"
+          git add tests/__snapshots__/butterstick-fixed-via-clamp.snap.svg
+          git commit -m "Render native ButterStick clamp ${{ matrix.mode }}"
+          git push origin HEAD:analysis/butterstick-clamp-${{ matrix.mode }}-snapshot

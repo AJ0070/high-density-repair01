@@ -51,11 +51,22 @@ type MutableNode = {
   forceIndex: number
 }
 
+export type FixedViaObstacle = {
+  x: number
+  y: number
+  radius: number
+  clearance: number
+  minZ: number
+  maxZ: number
+  connectionNames: readonly string[]
+}
+
 type MutableRoute = {
   route: HighDensityRoute
   rootConnectionName: string
   nodes: MutableNode[]
   pointNodeIndexes: Int32Array
+  fixedViaObstacles: readonly FixedViaObstacle[]
 }
 
 type ForceElementBase = {
@@ -125,6 +136,7 @@ export type ForceImproveResult = {
 }
 
 export type ForceImproveOptions = {
+  fixedViaObstacles?: readonly FixedViaObstacle[]
   includeForceVectors?: boolean
   fixedPortPoints?: ReadonlyArray<{ x: number; y: number; z: number }>
 }
@@ -400,15 +412,52 @@ const getClearanceForceMagnitude = (
   return tailMagnitude < 1e-5 ? 0 : tailMagnitude
 }
 
-const clampNodeToBounds = (node: MutableNode, bounds: Bounds) => {
+const clampNodeToBounds = ({
+  node,
+  bounds,
+  route,
+  fixedViaObstacles,
+}: {
+  node: MutableNode
+  bounds: Bounds
+  route: HighDensityRoute
+  fixedViaObstacles: readonly FixedViaObstacle[]
+}): void => {
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset
   const minY = bounds.minY + node.boundaryPadding + inset
   const maxY = bounds.maxY - node.boundaryPadding - inset
 
-  node.x = clampValue(node.x, minX, maxX)
-  node.y = clampValue(node.y, minY, maxY)
+  const nextX = clampValue(node.x, minX, maxX)
+  const nextY = clampValue(node.y, minY, maxY)
+  if (node.fixed && node.boundaryPadding > 0) {
+    const zLayers = node.pointIndexes.map((index): number => route.route[index].z)
+    const minZ = Math.min(...zLayers)
+    const maxZ = Math.max(...zLayers)
+    const worsensFixedViaClearance = fixedViaObstacles.some(
+      (obstacle): boolean => {
+        if (obstacle.minZ > maxZ || obstacle.maxZ < minZ) return false
+        const originalDistance = getVectorLength(
+          node.x - obstacle.x,
+          node.y - obstacle.y,
+        )
+        const nextDistance = getVectorLength(
+          nextX - obstacle.x,
+          nextY - obstacle.y,
+        )
+        const requiredDistance =
+          node.boundaryPadding + obstacle.radius + obstacle.clearance
+        return (
+          nextDistance < requiredDistance - POSITION_EPSILON &&
+          nextDistance < originalDistance - POSITION_EPSILON
+        )
+      },
+    )
+    if (worsensFixedViaClearance) return
+  }
+  node.x = nextX
+  node.y = nextY
 }
 
 const clampMutableRoutesToBounds = (
@@ -417,7 +466,12 @@ const clampMutableRoutesToBounds = (
 ) => {
   for (const mutableRoute of mutableRoutes) {
     for (const node of mutableRoute.nodes) {
-      clampNodeToBounds(node, bounds)
+      clampNodeToBounds({
+        node,
+        bounds,
+        route: mutableRoute.route,
+        fixedViaObstacles: mutableRoute.fixedViaObstacles,
+      })
     }
   }
 }
@@ -473,10 +527,15 @@ const getMaxCorrectionForElement = (
     ? maxCorrection * VIA_SEGMENT_MAX_CLEARANCE_CORRECTION_MULTIPLIER
     : maxCorrection
 
-const buildMutableRoutes = (
-  routes: HighDensityRoute[],
-  fixedPortPoints: ReadonlyArray<{ x: number; y: number; z: number }> = [],
-) => {
+const buildMutableRoutes = ({
+  routes,
+  fixedPortPoints = [],
+  fixedViaObstacles = [],
+}: {
+  routes: HighDensityRoute[]
+  fixedPortPoints?: ReadonlyArray<{ x: number; y: number; z: number }>
+  fixedViaObstacles?: readonly FixedViaObstacle[]
+}): { mutableRoutes: MutableRoute[]; totalNodeCount: number } => {
   let nextForceIndex = 0
   const mutableRoutes: MutableRoute[] = routes.map((inputRoute) => {
     // An endpoint via needs a separate anchor at its topology port. The via
@@ -580,6 +639,13 @@ const buildMutableRoutes = (
       rootConnectionName: route.rootConnectionName ?? route.connectionName,
       nodes,
       pointNodeIndexes,
+      fixedViaObstacles: fixedViaObstacles.filter(
+        (obstacle): boolean =>
+          !obstacle.connectionNames.includes(route.connectionName) &&
+          !obstacle.connectionNames.includes(
+            route.rootConnectionName ?? route.connectionName,
+          ),
+      ),
     }
   })
 
@@ -1589,10 +1655,11 @@ export const runForceDirectedImprovement = (
   totalSteps: number,
   options?: ForceImproveOptions,
 ): ForceImproveResult => {
-  const { mutableRoutes, totalNodeCount } = buildMutableRoutes(
+  const { mutableRoutes, totalNodeCount } = buildMutableRoutes({
     routes,
-    options?.fixedPortPoints,
-  )
+    fixedPortPoints: options?.fixedPortPoints,
+    fixedViaObstacles: options?.fixedViaObstacles,
+  })
   const forceElements = buildForceElements(mutableRoutes)
   const segments = buildSegmentObstacles(mutableRoutes)
   const nodeForces = new Float64Array(totalNodeCount * 2)
@@ -1999,6 +2066,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
   readonly totalStepsPerNode: number
   readonly nodeAssignmentMargin: number
   readonly preserveTopologyPortAnchors: boolean
+  readonly fixedViaObstacles: readonly FixedViaObstacle[]
 
   improvedRoutesByIndex = new Map<number, HighDensityRoute>()
   activeSampleIndex = 0
@@ -2011,9 +2079,11 @@ export class HighDensityForceImproveSolver extends BaseSolver {
     nodeAssignmentMargin?: number
     /** Keep shared topology ports attached while endpoint vias fit inside the node. */
     preserveTopologyPortAnchors?: boolean
+    fixedViaObstacles?: readonly FixedViaObstacle[]
     colorMap?: Record<string, string>
   }) {
     super()
+    this.fixedViaObstacles = params.fixedViaObstacles ?? []
     this.originalHdRoutes = params.hdRoutes
     this.originalNodeWithPortPoints = params.nodeWithPortPoints
     this.colorMap = params.colorMap ?? {}
@@ -2066,6 +2136,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
         totalStepsPerNode: this.totalStepsPerNode,
         nodeAssignmentMargin: this.nodeAssignmentMargin,
         preserveTopologyPortAnchors: this.preserveTopologyPortAnchors,
+        fixedViaObstacles: this.fixedViaObstacles,
         colorMap: this.colorMap,
       },
     ] as const
@@ -2089,6 +2160,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
       this.totalStepsPerNode,
       {
         includeForceVectors: true,
+        fixedViaObstacles: this.fixedViaObstacles,
         fixedPortPoints: this.preserveTopologyPortAnchors
           ? sampleEntry.node.portPoints
           : undefined,
@@ -2115,6 +2187,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
             this.totalStepsPerNode,
             {
               includeForceVectors: true,
+        fixedViaObstacles: this.fixedViaObstacles,
               fixedPortPoints: this.preserveTopologyPortAnchors
                 ? sampleEntry.node.portPoints
                 : undefined,

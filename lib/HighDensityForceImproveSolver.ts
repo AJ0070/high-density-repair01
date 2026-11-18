@@ -416,7 +416,16 @@ const clampMutableRoutesToBounds = (
   bounds: Bounds,
 ) => {
   for (const mutableRoute of mutableRoutes) {
+    const lastPointIndex = mutableRoute.route.route.length - 1
     for (const node of mutableRoute.nodes) {
+      const isRouteEndpoint =
+        node.pointIndexes.includes(0) ||
+        node.pointIndexes.includes(lastPointIndex)
+      if (isRouteEndpoint) {
+        node.x = clampValue(node.x, bounds.minX, bounds.maxX)
+        node.y = clampValue(node.y, bounds.minY, bounds.maxY)
+        continue
+      }
       clampNodeToBounds(node, bounds)
     }
   }

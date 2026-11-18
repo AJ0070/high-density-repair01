@@ -1,0 +1,32 @@
+name: Check whether an inverted-bounds guard alone is sufficient
+on:
+  push:
+    branches: [analysis/butterstick-inverted-bounds-check]
+    paths: [.github/workflows/butterstick-inverted-bounds-check.yml]
+permissions:
+  contents: read
+jobs:
+  existing-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+      - run: bun install
+      - name: Check the smaller existing-solver alternative
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("lib/HighDensityForceImproveSolver.ts")
+          s=p.read_text()
+          needle="  node.x = clampValue(node.x, minX, maxX)"
+          assert s.count(needle)==1
+          s=s.replace(needle,"  if (node.fixed && (minX > maxX || minY > maxY)) return\n\n"+needle)
+          p.write_text(s)
+          PY
+          bunx tsc --noEmit
+          bun test --timeout 9999999

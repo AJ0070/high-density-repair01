@@ -1,0 +1,268 @@
+{
+  "input": {
+    "nodeWithPortPoints": [
+      {
+        "capacityMeshNodeId": "topology_merge_12885",
+        "center": {
+          "x": 1.6649999999999974,
+          "y": 5.974999999999997
+        },
+        "width": 0.2999999999999996,
+        "height": 0.3000000000000007,
+        "portPoints": [
+          {
+            "portPointId": "ce50215_pp0_z3_cramped::3",
+            "x": 1.6649999999999974,
+            "y": 6.124999999999997,
+            "z": 3,
+            "connectionName": "source_net_2_mst134",
+            "rootConnectionName": "connectivity_net10",
+            "nextPortPointId": "ce50212_pp0_z0_cramped::0"
+          },
+          {
+            "portPointId": "ce50212_pp0_z0_cramped::0",
+            "x": 1.6649999999999974,
+            "y": 6.124999999999997,
+            "z": 0,
+            "connectionName": "source_net_2_mst134",
+            "rootConnectionName": "connectivity_net10",
+            "prevPortPointId": "ce50215_pp0_z3_cramped::3"
+          },
+          {
+            "x": 1.5421108458757975,
+            "y": 5.824999999999997,
+            "z": 1,
+            "portPointId": "pipeline9_fallback:source_net_58_fixed_49_17:start",
+            "nextPortPointId": "pipeline9_fallback:source_net_58_fixed_49_17:end",
+            "connectionName": "source_net_58_fixed_49_17",
+            "rootConnectionName": "connectivity_net169"
+          },
+          {
+            "x": 1.8149999999999973,
+            "y": 6.008622548982127,
+            "z": 0,
+            "portPointId": "pipeline9_fallback:source_net_58_fixed_49_17:end",
+            "prevPortPointId": "pipeline9_fallback:source_net_58_fixed_49_17:start",
+            "connectionName": "source_net_58_fixed_49_17",
+            "rootConnectionName": "connectivity_net169"
+          }
+        ],
+        "portPointsInPairs": [
+          [
+            {
+              "portPointId": "ce50215_pp0_z3_cramped::3",
+              "x": 1.6649999999999974,
+              "y": 6.124999999999997,
+              "z": 3,
+              "connectionName": "source_net_2_mst134",
+              "rootConnectionName": "connectivity_net10",
+              "nextPortPointId": "ce50212_pp0_z0_cramped::0"
+            },
+            {
+              "portPointId": "ce50212_pp0_z0_cramped::0",
+              "x": 1.6649999999999974,
+              "y": 6.124999999999997,
+              "z": 0,
+              "connectionName": "source_net_2_mst134",
+              "rootConnectionName": "connectivity_net10",
+              "prevPortPointId": "ce50215_pp0_z3_cramped::3"
+            }
+          ],
+          [
+            {
+              "x": 1.5421108458757975,
+              "y": 5.824999999999997,
+              "z": 1,
+              "portPointId": "pipeline9_fallback:source_net_58_fixed_49_17:start",
+              "nextPortPointId": "pipeline9_fallback:source_net_58_fixed_49_17:end",
+              "connectionName": "source_net_58_fixed_49_17",
+              "rootConnectionName": "connectivity_net169"
+            },
+            {
+              "x": 1.8149999999999973,
+              "y": 6.008622548982127,
+              "z": 0,
+              "portPointId": "pipeline9_fallback:source_net_58_fixed_49_17:end",
+              "prevPortPointId": "pipeline9_fallback:source_net_58_fixed_49_17:start",
+              "connectionName": "source_net_58_fixed_49_17",
+              "rootConnectionName": "connectivity_net169"
+            }
+          ]
+        ],
+        "availableZ": [0, 1, 2, 3]
+      }
+    ],
+    "hdRoutes": [
+      {
+        "connectionName": "source_net_2_mst134",
+        "rootConnectionName": "connectivity_net10",
+        "regionId": "topology_merge_12885",
+        "traceThickness": 0.08,
+        "viaDiameter": 0.35,
+        "route": [
+          {
+            "x": 1.6649999999999974,
+            "y": 6.124999999999997,
+            "z": 3
+          },
+          {
+            "x": 1.6693749999999978,
+            "y": 6.128124999999997,
+            "z": 3
+          },
+          {
+            "x": 1.6693749999999978,
+            "y": 6.103124999999998,
+            "z": 3
+          },
+          {
+            "x": 1.6693749999999978,
+            "y": 6.078124999999997,
+            "z": 3
+          },
+          {
+            "x": 1.6693749999999978,
+            "y": 6.078124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6693749999999978,
+            "y": 6.103124999999998,
+            "z": 0
+          },
+          {
+            "x": 1.6649999999999974,
+            "y": 6.124999999999997,
+            "z": 0
+          }
+        ],
+        "vias": [
+          {
+            "x": 1.6693749999999978,
+            "y": 6.078124999999997
+          }
+        ]
+      },
+      {
+        "connectionName": "source_net_58_fixed_49_17",
+        "rootConnectionName": "connectivity_net169",
+        "regionId": "topology_merge_12885",
+        "traceThickness": 0.08,
+        "viaDiameter": 0.35,
+        "route": [
+          {
+            "x": 1.8149999999999973,
+            "y": 6.008622548982127,
+            "z": 0
+          },
+          {
+            "x": 1.8193749999999977,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.7943749999999978,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.7693749999999977,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.7443749999999976,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.7193749999999977,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6943749999999977,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6693749999999976,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6443749999999977,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6193749999999976,
+            "y": 6.003124999999997,
+            "z": 0
+          },
+          {
+            "x": 1.6193749999999976,
+            "y": 6.003124999999997,
+            "z": 1
+          },
+          {
+            "x": 1.5943749999999977,
+            "y": 5.978124999999998,
+            "z": 1
+          },
+          {
+            "x": 1.5943749999999977,
+            "y": 5.953124999999997,
+            "z": 1
+          },
+          {
+            "x": 1.5693749999999977,
+            "y": 5.928124999999997,
+            "z": 1
+          },
+          {
+            "x": 1.5693749999999977,
+            "y": 5.9031249999999975,
+            "z": 1
+          },
+          {
+            "x": 1.5693749999999977,
+            "y": 5.878124999999997,
+            "z": 1
+          },
+          {
+            "x": 1.5443749999999976,
+            "y": 5.853124999999997,
+            "z": 1
+          },
+          {
+            "x": 1.5421108458757975,
+            "y": 5.824999999999997,
+            "z": 1
+          }
+        ],
+        "vias": [
+          {
+            "x": 1.6193749999999976,
+            "y": 6.003124999999997
+          }
+        ]
+      }
+    ],
+    "totalStepsPerNode": 20,
+    "nodeAssignmentMargin": 0.15
+  },
+  "pad": {
+    "center": {
+      "x": 1.9899999999999975,
+      "y": 5.649999999999997
+    },
+    "radius": 0.175
+  },
+  "minClearance": 0.1,
+  "preloadedConnectionNames": [
+    "source_net_58_fixed_49_17",
+    "source_net_58_fixed_49_18",
+    "source_net_58_fixed_49_19"
+  ]
+}

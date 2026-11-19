@@ -53,6 +53,7 @@ type MutableNode = {
 }
 
 type MutableRoute = {
+  isFixed: boolean
   route: HighDensityRoute
   rootConnectionName: string
   nodes: MutableNode[]
@@ -126,6 +127,7 @@ export type ForceImproveResult = {
 }
 
 export type ForceImproveOptions = {
+  fixedHdRoutes?: HighDensityRoute[]
   includeForceVectors?: boolean
   fixedPortPoints?: ReadonlyArray<{ x: number; y: number; z: number }>
 }
@@ -417,6 +419,7 @@ const clampMutableRoutesToBounds = (
   bounds: Bounds,
 ) => {
   for (const mutableRoute of mutableRoutes) {
+    if (mutableRoute.isFixed) continue
     for (const node of mutableRoute.nodes) {
       clampNodeToBounds(node, bounds)
     }
@@ -581,6 +584,7 @@ const buildMutableRoutes = (
     }
 
     return {
+      isFixed: false,
       route,
       rootConnectionName: route.rootConnectionName ?? route.connectionName,
       nodes,
@@ -1320,12 +1324,28 @@ const projectSegmentSegmentClearance = (params: {
   return changed
 }
 
-const applyProjectionClearance = (
-  node: NodeWithPortPoints,
-  routes: HighDensityRoute[],
-) => {
+const applyProjectionClearance = ({
+  node,
+  routes: routedRoutes,
+  fixedHdRoutes,
+}: {
+  node: NodeWithPortPoints
+  routes: HighDensityRoute[]
+  fixedHdRoutes: HighDensityRoute[]
+}): HighDensityRoute[] => {
+  let routes = routedRoutes
+  let movableRouteIndexes: Set<number> | undefined
+  if (fixedHdRoutes.length > 0) {
+    movableRouteIndexes = new Set(routedRoutes.map((_, index) => index))
+    routes = [...routedRoutes, ...fixedHdRoutes]
+  }
   for (let pass = 0; pass < VIA_PROJECTION_PASSES; pass += 1) {
     const vias = collectProjectionViaNodes(routes)
+    if (movableRouteIndexes) {
+      for (const via of vias) {
+        via.movable &&= movableRouteIndexes.has(via.routeIndex)
+      }
+    }
     const segments = collectProjectionSegments(routes)
     const viaToViaChanged = projectViaViaClearance({
       routes,
@@ -1342,6 +1362,7 @@ const applyProjectionClearance = (
       routes,
       node,
       segments,
+      movableRouteIndexes,
     })
 
     if (!viaToViaChanged && !viaToSegmentChanged && !segmentToSegmentChanged) {
@@ -1349,11 +1370,11 @@ const applyProjectionClearance = (
     }
   }
 
-  for (const route of routes) {
+  for (const route of routedRoutes) {
     route.vias = deriveVias(route)
   }
 
-  return routes
+  return routedRoutes
 }
 
 const applySelectedRouteSegmentClearance = (
@@ -1597,9 +1618,14 @@ export const runForceDirectedImprovement = (
   options?: ForceImproveOptions,
 ): ForceImproveResult => {
   const { mutableRoutes, totalNodeCount } = buildMutableRoutes(
-    routes,
+    [...routes, ...(options?.fixedHdRoutes ?? [])],
     options?.fixedPortPoints,
   )
+  for (let index = routes.length; index < mutableRoutes.length; index++) {
+    const fixedRoute = mutableRoutes[index]!
+    fixedRoute.isFixed = true
+    for (const node of fixedRoute.nodes) node.fixed = true
+  }
   const forceElements = buildForceElements(mutableRoutes)
   const segments = buildSegmentObstacles(mutableRoutes)
   const nodeForces = new Float64Array(totalNodeCount * 2)
@@ -1989,7 +2015,7 @@ export const runForceDirectedImprovement = (
     FINAL_MAX_CLEARANCE_CORRECTION,
   )
 
-  const improvedRoutes = materializeRoutes(mutableRoutes)
+  const improvedRoutes = materializeRoutes(mutableRoutes.slice(0, routes.length))
 
   return {
     routes: improvedRoutes,
@@ -2001,6 +2027,7 @@ export const runForceDirectedImprovement = (
 export class HighDensityForceImproveSolver extends BaseSolver {
   readonly sampleEntries: ForceImproveSampleEntry[]
   readonly originalHdRoutes: HighDensityRoute[]
+  readonly fixedHdRoutes: HighDensityRoute[]
   readonly originalNodeWithPortPoints: NodeWithPortPoints[]
   readonly colorMap: Record<string, string>
   readonly totalStepsPerNode: number
@@ -2014,6 +2041,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
   constructor(params: {
     nodeWithPortPoints: NodeWithPortPoints[]
     hdRoutes: HighDensityRoute[]
+    fixedHdRoutes?: HighDensityRoute[]
     totalStepsPerNode?: number
     nodeAssignmentMargin?: number
     /** Keep shared topology ports attached while endpoint vias fit inside the node. */
@@ -2022,6 +2050,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
   }) {
     super()
     this.originalHdRoutes = params.hdRoutes
+    this.fixedHdRoutes = params.fixedHdRoutes ?? []
     this.originalNodeWithPortPoints = params.nodeWithPortPoints
     this.colorMap = params.colorMap ?? {}
     this.totalStepsPerNode =
@@ -2085,12 +2114,28 @@ export class HighDensityForceImproveSolver extends BaseSolver {
       {
         nodeWithPortPoints: this.originalNodeWithPortPoints,
         hdRoutes: this.originalHdRoutes,
+        fixedHdRoutes: this.fixedHdRoutes,
         totalStepsPerNode: this.totalStepsPerNode,
         nodeAssignmentMargin: this.nodeAssignmentMargin,
         preserveTopologyPortAnchors: this.preserveTopologyPortAnchors,
         colorMap: this.colorMap,
       },
     ] as const
+  }
+
+  protected getFixedRoutesForNode(node: NodeWithPortPoints): HighDensityRoute[] {
+    const bounds = getNodeBounds(node, this.nodeAssignmentMargin)
+    return this.fixedHdRoutes.filter((route) => {
+      const radius = Math.max(route.traceThickness, route.viaDiameter) / 2
+      const xs = route.route.map((point) => point.x)
+      const ys = route.route.map((point) => point.y)
+      return (
+        Math.min(...xs) - radius <= bounds.maxX &&
+        Math.max(...xs) + radius >= bounds.minX &&
+        Math.min(...ys) - radius <= bounds.maxY &&
+        Math.max(...ys) + radius >= bounds.minY
+      )
+    })
   }
 
   override _step() {
@@ -2102,6 +2147,7 @@ export class HighDensityForceImproveSolver extends BaseSolver {
     }
 
     const bounds = getNodeBounds(sampleEntry.node)
+    const fixedHdRoutes = this.getFixedRoutesForNode(sampleEntry.node)
     const inputRoutes = sampleEntry.routeIndexes.map(
       (routeIndex) => this.originalHdRoutes[routeIndex],
     )
@@ -2111,12 +2157,17 @@ export class HighDensityForceImproveSolver extends BaseSolver {
       this.totalStepsPerNode,
       {
         includeForceVectors: true,
+        fixedHdRoutes,
         fixedPortPoints: this.preserveTopologyPortAnchors
           ? sampleEntry.node.portPoints
           : undefined,
       },
     )
-    applyProjectionClearance(sampleEntry.node, baselineResult.routes)
+    applyProjectionClearance({
+      node: sampleEntry.node,
+      routes: baselineResult.routes,
+      fixedHdRoutes,
+    })
     const segmentPairBarrierSelectors = findNewProperSegmentCrossings(
       inputRoutes,
       baselineResult.routes,
@@ -2137,13 +2188,18 @@ export class HighDensityForceImproveSolver extends BaseSolver {
             this.totalStepsPerNode,
             {
               includeForceVectors: true,
+              fixedHdRoutes,
               fixedPortPoints: this.preserveTopologyPortAnchors
                 ? sampleEntry.node.portPoints
                 : undefined,
             },
           )
     if (result !== baselineResult) {
-      applyProjectionClearance(sampleEntry.node, result.routes)
+      applyProjectionClearance({
+        node: sampleEntry.node,
+        routes: result.routes,
+        fixedHdRoutes,
+      })
       const residualCrossingSelectors = findNewProperSegmentCrossings(
         inputRoutes,
         result.routes,

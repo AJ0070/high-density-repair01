@@ -2008,7 +2008,9 @@ export const runForceDirectedImprovement = (
     FINAL_MAX_CLEARANCE_CORRECTION,
   )
 
-  const improvedRoutes = materializeRoutes(mutableRoutes.slice(0, routes.length))
+  const improvedRoutes = materializeRoutes(
+    mutableRoutes.slice(0, routes.length),
+  )
 
   return {
     routes: improvedRoutes,
@@ -2101,7 +2103,9 @@ export class HighDensityForceImproveSolver extends BaseSolver {
     ] as const
   }
 
-  protected getFixedRoutesForNode(node: NodeWithPortPoints): HighDensityRoute[] {
+  protected getFixedRoutesForNode(
+    node: NodeWithPortPoints,
+  ): HighDensityRoute[] {
     const bounds = getNodeBounds(node, this.nodeAssignmentMargin)
     return this.fixedHdRoutes.filter((route) => {
       const radius = Math.max(route.traceThickness, route.viaDiameter) / 2

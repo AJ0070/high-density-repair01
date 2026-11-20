@@ -52,6 +52,7 @@ type MutableNode = {
 }
 
 type MutableRoute = {
+  preserveTopologyPortAnchors: boolean
   isFixed: boolean
   route: HighDensityRoute
   rootConnectionName: string
@@ -403,7 +404,6 @@ const getClearanceForceMagnitude = (
 }
 
 const clampNodeToBounds = (node: MutableNode, bounds: Bounds) => {
-  if (node.fixed) return
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset
@@ -421,6 +421,7 @@ const clampMutableRoutesToBounds = (
   for (const mutableRoute of mutableRoutes) {
     if (mutableRoute.isFixed) continue
     for (const node of mutableRoute.nodes) {
+      if (mutableRoute.preserveTopologyPortAnchors && node.fixed) continue
       clampNodeToBounds(node, bounds)
     }
   }
@@ -580,6 +581,7 @@ const buildMutableRoutes = (
     }
 
     return {
+      preserveTopologyPortAnchors: fixedPortPoints.length > 0,
       isFixed: false,
       route,
       rootConnectionName: route.rootConnectionName ?? route.connectionName,

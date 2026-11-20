@@ -20,6 +20,7 @@ test("bounds clamping preserves a protected pad escape before force movement", (
     { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 },
     [route],
     0,
+    { fixedPortPoints: [route.route[0]!, route.route.at(-1)!] },
   )
 
   expect(result.routes[0]!.route).toEqual(original.route)

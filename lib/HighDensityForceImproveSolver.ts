@@ -403,6 +403,7 @@ const getClearanceForceMagnitude = (
 }
 
 const clampNodeToBounds = (node: MutableNode, bounds: Bounds) => {
+  if (node.fixed) return
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset
@@ -891,13 +892,13 @@ const materializeRoutes = (mutableRoutes: MutableRoute[]) =>
       return ownerNode
         ? {
             ...point,
-            // Through-obstacle anchors must remain inside the same pad's
-            // routing envelope. Other nodes retain their established grid.
-            x: ownerNode.isThroughObstacleAnchor
-              ? ownerNode.x
+            // Fixed ports and through-obstacle anchors keep their original copper.
+            // Movable nodes retain their established grid.
+            x: ownerNode.fixed
+              ? ownerNode.originalX
               : roundCoordinate(ownerNode.x),
-            y: ownerNode.isThroughObstacleAnchor
-              ? ownerNode.y
+            y: ownerNode.fixed
+              ? ownerNode.originalY
               : roundCoordinate(ownerNode.y),
           }
         : point

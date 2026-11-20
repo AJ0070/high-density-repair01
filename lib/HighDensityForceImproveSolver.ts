@@ -403,6 +403,7 @@ const getClearanceForceMagnitude = (
 }
 
 const clampNodeToBounds = (node: MutableNode, bounds: Bounds) => {
+  if (node.fixed) return
   const inset = node.boundaryPadding > 0 ? BOUNDARY_INSET : 0
   const minX = bounds.minX + node.boundaryPadding + inset
   const maxX = bounds.maxX - node.boundaryPadding - inset

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { runForceDirectedImprovement } from "../lib/HighDensityForceImproveSolver"
 import type { HighDensityRoute } from "../lib/types/high-density-types"
 
-test("bounds clamping preserves a protected topology escape segment", (): void => {
+test("bounds clamping preserves protected escapes beside fixed copper", (): void => {
   const route: HighDensityRoute = {
     connectionName: "signal",
     traceThickness: 0.1,
@@ -20,7 +20,20 @@ test("bounds clamping preserves a protected topology escape segment", (): void =
     { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 },
     [route],
     0,
-    { fixedPortPoints: [route.route[0]!, route.route.at(-1)!] },
+    {
+      fixedPortPoints: [route.route[0]!, route.route.at(-1)!],
+      fixedHdRoutes: [
+        {
+          ...route,
+          connectionName: "completed",
+          isFixed: true,
+          route: [
+            { x: -0.4, y: 0.3, z: 1 },
+            { x: 0.4, y: 0.3, z: 1 },
+          ],
+        },
+      ],
+    },
   )
 
   expect(result.routes[0]!.route).toEqual(original.route)

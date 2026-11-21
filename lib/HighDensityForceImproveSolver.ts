@@ -52,6 +52,7 @@ type MutableNode = {
 }
 
 type MutableRoute = {
+  preserveFixedEscapes: boolean
   isFixed: boolean
   route: HighDensityRoute
   rootConnectionName: string
@@ -420,6 +421,7 @@ const clampMutableRoutesToBounds = (
   for (const mutableRoute of mutableRoutes) {
     if (mutableRoute.isFixed) continue
     for (const node of mutableRoute.nodes) {
+      if (mutableRoute.preserveFixedEscapes && node.fixed) continue
       clampNodeToBounds(node, bounds)
     }
   }
@@ -478,8 +480,11 @@ const getMaxCorrectionForElement = (
 
 const buildMutableRoutes = (
   routes: HighDensityRoute[],
-  fixedPortPoints: ReadonlyArray<{ x: number; y: number; z: number }> = [],
+  options?: ForceImproveOptions,
 ) => {
+  const fixedPortPoints = options?.fixedPortPoints ?? []
+  const hasFixedCopper = (options?.fixedHdRoutes?.length ?? 0) > 0
+  const preserveFixedEscapes = fixedPortPoints.length > 0 && hasFixedCopper
   let nextForceIndex = 0
   const mutableRoutes: MutableRoute[] = routes.map((inputRoute) => {
     // An endpoint via needs a separate anchor at its topology port. The via
@@ -579,6 +584,7 @@ const buildMutableRoutes = (
     }
 
     return {
+      preserveFixedEscapes,
       isFixed: false,
       route,
       rootConnectionName: route.rootConnectionName ?? route.connectionName,
@@ -1612,7 +1618,7 @@ export const runForceDirectedImprovement = (
 ): ForceImproveResult => {
   const { mutableRoutes, totalNodeCount } = buildMutableRoutes(
     [...routes, ...(options?.fixedHdRoutes ?? [])],
-    options?.fixedPortPoints,
+    options,
   )
   for (let index = routes.length; index < mutableRoutes.length; index++) {
     const fixedRoute = mutableRoutes[index]!

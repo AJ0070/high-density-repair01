@@ -421,8 +421,7 @@ const clampMutableRoutesToBounds = (
   for (const mutableRoute of mutableRoutes) {
     if (mutableRoute.isFixed) continue
     for (const node of mutableRoute.nodes) {
-      const isProtectedWire = node.fixed && node.boundaryPadding === 0
-      if (mutableRoute.preserveFixedEscapes && isProtectedWire) continue
+      if (mutableRoute.preserveFixedEscapes && node.fixed) continue
       clampNodeToBounds(node, bounds)
     }
   }

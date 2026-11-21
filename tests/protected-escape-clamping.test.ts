@@ -26,7 +26,6 @@ test("bounds clamping preserves protected escapes beside fixed copper", (): void
         {
           ...route,
           connectionName: "completed",
-          isFixed: true,
           route: [
             { x: -0.4, y: 0.3, z: 1 },
             { x: 0.4, y: 0.3, z: 1 },

@@ -481,10 +481,11 @@ const getMaxCorrectionForElement = (
 
 const buildMutableRoutes = (
   routes: HighDensityRoute[],
-  fixedPortPoints: ReadonlyArray<{ x: number; y: number; z: number }> = [],
+  options?: ForceImproveOptions,
 ) => {
-  const preserveFixedEscapes =
-    fixedPortPoints.length > 0 && routes.some((route) => route.isFixed === true)
+  const fixedPortPoints = options?.fixedPortPoints ?? []
+  const hasFixedCopper = (options?.fixedHdRoutes?.length ?? 0) > 0
+  const preserveFixedEscapes = fixedPortPoints.length > 0 && hasFixedCopper
   let nextForceIndex = 0
   const mutableRoutes: MutableRoute[] = routes.map((inputRoute) => {
     // An endpoint via needs a separate anchor at its topology port. The via
@@ -1618,7 +1619,7 @@ export const runForceDirectedImprovement = (
 ): ForceImproveResult => {
   const { mutableRoutes, totalNodeCount } = buildMutableRoutes(
     [...routes, ...(options?.fixedHdRoutes ?? [])],
-    options?.fixedPortPoints,
+    options,
   )
   for (let index = routes.length; index < mutableRoutes.length; index++) {
     const fixedRoute = mutableRoutes[index]!
